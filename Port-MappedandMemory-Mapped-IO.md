@@ -1,6 +1,7 @@
 # I/O 寻址方式总结
 
 CPU 与设备控制器（Device Controller）交互主要通过读写控制器内的寄存器来实现。根据寄存器的地址映射方式，分为两种主要模式。
+Memory overhead is not affected by either method of I/O.
 
 ## 1. Port-Mapped I/O (端口映射 I/O)
 
