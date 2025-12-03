@@ -1,6 +1,9 @@
 # Remote Procedure Call (RPC) 核心总结
 
-基于 CS162 Lecture 21 & 22
+基于 CS162 Lecture 21 & 22  
+RPCs convert everything to/from some canonical form which describes how
+to encode/decode entries. Thus, the only thing that needs to be shared is
+this canonical representation.
 
 ## 1. 核心概念 (Core Concept)
 
