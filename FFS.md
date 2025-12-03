@@ -1,0 +1,63 @@
+# Berkeley Fast File System (FFS) 总结
+
+基于 CS162 Lecture 19 & 20
+
+## 1. 背景与设计目标
+**Berkeley FFS** (BSD 4.2, 1984) 是对早期 Unix 文件系统的重要改进。早期系统由于块尺寸太小（导致吞吐量低）和数据分散（导致寻道频繁）性能较差。
+
+* **核心目标**：提高磁盘吞吐量（Throughput）并优化数据局部性（Locality）。
+* **设计理念**：使文件系统“感知磁盘物理结构”（Disk-aware optimizations）。
+
+---
+
+## 2. 核心架构设计
+
+### A. 增大块大小 (Block Size)
+* **改变**：将块大小从 1024 字节增加到 **4096 字节 (4KB)**。
+* **收益**：每次传输更多数据，减少了寻道开销，提高了顺序读写性能。
+
+### B. 块组 / 柱面组 (Block Groups / Cylinder Groups)
+这是 FFS 解决局部性问题的核心机制。它将磁盘物理划分为若干个“块组”。
+
+* **组内结构**：每个块组包含自己的元数据和数据区域，类似于一个微型文件系统：
+    * 超级块副本 (Superblock Copy)
+    * Inode 表 (Inodes)
+    * 空闲空间位图 (Free Space Bitmap)
+    * 数据块 (Data Blocks)
+
+### C. 布局与分配策略 (Placement & Allocation Policies)
+为了最大化局部性，FFS 采用以下启发式策略：
+
+1.  **Inode 与数据靠近**：将文件的 Inode 和其数据块分配在同一个块组中，减少访问元数据后读取内容的寻道时间。
+2.  **目录局部性**：将目录及其内部包含的文件尽可能分配在同一个块组中。
+3.  **大文件处理**：对于非常大的文件，在填满当前块组后，会跳转分配到新的块组，以平衡磁盘空间使用。
+4.  **First-Free Allocation**：分配时优先寻找位图中紧邻的空闲块，以保持文件的连续性。
+
+### D. 空闲空间管理 (Free Space Management)
+* **位图 (Bitmap)**：FFS 使用位图替代了旧的空闲链表（Free List），使得查找连续空闲块更高效。
+* **保留空间 (Reserved Space)**：强制保留 **10%** 的磁盘空间给系统（用户不可用）。这是为了防止磁盘填满时碎片化导致性能崩溃，确保分配算法总能找到局部最优解。
+
+---
+
+## 3. 物理特性优化 (Rotational Delay)
+
+FFS 针对机械硬盘的物理特性解决了 **旋转延迟** 问题。
+
+* **问题**：CPU 处理当前块数据时，磁盘继续旋转，导致磁头错过下一个逻辑块的起始位置，必须等待多转一圈。
+* **解决方案 (Skip-sector / Interleaving)**：在物理磁道上不连续存放逻辑相邻的块，而是每隔 N 个扇区存放一个。留出的间隙刚好覆盖 CPU 的处理时间。
+
+---
+
+## 4. 可靠性与恢复 (Reliability & Recovery)
+
+FFS 没有使用现代的日志（Journaling），而是依赖严格的操作顺序和事后检查。
+
+### A. 精心排序 (Careful Ordering)
+为了保证元数据的一致性，FFS 对文件创建等操作强制执行特定的写入顺序：
+1.  写数据块 (Write data block)
+2.  分配并写 Inode (Allocate & Write Inode)
+3.  更新位图 (Update bitmap)
+4.  更新目录项 (Update directory entry)
+
+### B. fsck (File System Check)
+*
