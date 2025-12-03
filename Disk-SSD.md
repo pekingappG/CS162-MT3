@@ -64,6 +64,8 @@ FTL 主要负责解决三个问题：
     3.  原来的物理页被标记为“垃圾”或“无效”。
 * **结果**：OS 觉得它覆盖了旧数据，其实 SSD 只是换了个地方写（Log-structured 写法）。
 
+It buffers small writes and aggregates them into one large write
+
 #### B. 磨损均衡 (Wear Leveling)
 * **问题**：闪存的每个 Block 都有擦除次数寿命（P/E cycles）。如果总是写同一个位置（比如文件系统的元数据区），那个 Block 会很快坏掉，导致整个 SSD 报废。
 * **解决**：FTL 智能地将写入操作分散到整个 SSD 的所有 Block 上。即使 OS 一直在写同一个逻辑地址，FTL 也会把它映射到不同的物理 Block 上，确保所有 Block “一起变老”。
